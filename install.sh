@@ -20,8 +20,8 @@ print_error() {
 
 print_info "Installing system dependencies..."
 sudo apt update
-sudo apt install -y git python3-pip python3-venv python3-dev libssl-dev libffi-dev nmap
-sudo apt install -y jq curl  # Added for crtsh functionality in Subenum
+sudo apt install -y git python3-pip python3-venv python3-dev libssl-dev libffi-dev nmap unzip
+sudo apt install -y jq curl ca-certificates
 
 print_info "Installing pipx (for Python CLI tools like Anubis)..."
 if ! command -v pipx &> /dev/null; then
