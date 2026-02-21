@@ -556,20 +556,20 @@ if [ -n "$list" ]; then
         Assetfinder
         Findomain
 
-    # Merge outputs
-    SUBDOMAINS_FILE="${output:-subdomains.txt}"
-    Out "$SUBDOMAINS_FILE"
+            # Merge outputs
+        SUBDOMAINS_FILE="${output:-subdomains.txt}"
+        Out "$SUBDOMAINS_FILE"
 
-    # Run FFUF bruteforce if enabled
-    if [ "$run_ffuf" == True ]; then
-        run_ffuf "$SUBDOMAINS_FILE" "$domain"
-        
-        # Run HTTP probe if enabled
-        if [ "$http_probe" == True ]; then
-            run_http_probe "$domain" "$SUBDOMAINS_FILE"
+        # Run FFUF bruteforce if enabled
+        if [ "$run_ffuf" == True ]; then
+            run_ffuf "$SUBDOMAINS_FILE" "$domain"
+            
+            # Run HTTP probe if enabled
+            if [ "$http_probe" == True ]; then
+                run_http_probe "$domain" "$SUBDOMAINS_FILE"
+            fi
         fi
-    fi
-done < "$list"
+    done < "$list"
 else
     echo -e "${BOLD}${GREEN}[*] Enumerating: $domain${NC}"
     # Call enumeration functions
