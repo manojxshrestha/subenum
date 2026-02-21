@@ -10,67 +10,95 @@
 
 
 <p align="center">
-An Automated Subdomain Enumeration Tool. 
+An Automated Subdomain Enumeration Tool with FFUF bruteforce, HTTP probing, and ASN enumeration.
 </p>
 
 <div align="center">
 
 [![License](https://img.shields.io/badge/license-MIT-green)](https://github.com/manojxshrestha/subenum/blob/main/LICENSE) 
 [![GitHub Repo](https://img.shields.io/badge/repo-GitHub-black?logo=github)](https://github.com/manojxshrestha/subenum) 
-[![Issues](https://img.shields.io/github/issues/manojxshrestha/xSQL)](https://github.com/manojxshrestha/subenum/issues) 
-[![Stars](https://img.shields.io/github/stars/manojxshrestha/xSQL?style=social)](https://github.com/manojxshrestha/subenum)
+[![Issues](https://img.shields.io/github/issues/manojxshrestha/subenum)](https://github.com/manojxshrestha/subenum/issues) 
+[![Stars](https://img.shields.io/github/stars/manojxshrestha/subenum?style=social)](https://github.com/manojxshrestha/subenum)
 
 </div>
 
 ---
-**subenum** is a powerful bash-based automation tool designed to discover subdomains using multiple open-source tools and APIs. It supports both passive and active enumeration with optional parallel processing for faster results.
+
+**subenum** is a powerful bash-based automation tool for subdomain enumeration. It combines multiple tools and includes FFUF bruteforce, HTTP probing, and ASN/organization-based enumeration. **No API keys required!**
 
 ---
 
 ## 🚀 Features
 
-* Combines multiple enumeration tools for extensive coverage
-* Supports single domain or domain lists
-* Options to include/exclude tools
-* Parallel execution mode for speed
-* Silent output mode for scripting
-* Merges and deduplicates results
-* Optional HTTP probing support
-* Saves final results to timestamped files
-* Spinner UI for better UX
+* Passive subdomain enumeration using multiple tools
+* FFUF bruteforce for additional subdomain discovery
+* HTTP/HTTPS probing with status codes, titles, and tech detection
+* ASN/Organization-based enumeration using Metabigor
+* Certificate transparency search
+* Parallel execution mode for faster results
+* Auto-cleanup of temporary files
+* Results organized in `temp/` and `results/` folders
+* Safe CIDR expansion (prevents memory issues)
 
 ---
 
 ## ⚙ Supported Tools
 
-Subenum integrates with the following tools:
-
+### Subdomain Enumeration
 * [subfinder](https://github.com/projectdiscovery/subfinder)
 * [amass](https://github.com/owasp-amass/amass)
 * [assetfinder](https://github.com/tomnomnom/assetfinder)
 * [findomain](https://github.com/Findomain/Findomain)
-* [github-subdomains](https://github.com/gwen001/github-subdomains)
-* [gitlab-subdomains](https://github.com/gwen001/gitlab-subdomains)
-* [cero](https://github.com/glebarez/cero)
-* [shosubgo](https://github.com/incogbyte/shosubgo)
-* [crt.sh](https://crt.sh/)
-* [Anubis](https://github.com/jonluca/Anubis)
-* [anew](https://github.com/tomnomnom/anew) (for output deduplication)
+
+### FFUF & HTTP Probing
+* [ffuf](https://github.com/ffuf/ffuf)
+* [dnsx](https://github.com/projectdiscovery/dnsx)
+* [httpx](https://github.com/projectdiscovery/httpx)
+
+### ASN/Network Enumeration
+* [metabigor](https://github.com/j3ssie/metabigor)
+* [prips](https://github.com/imusabkhan/prips)
+
+### Utilities
+* [anew](https://github.com/tomnomnom/anew) (for deduplication)
 
 ---
 
 ## 📦 Installation
 
-Clone the repository and run the installer:
+### 1. Clone the repository
 
 ```bash
 git clone https://github.com/manojxshrestha/subenum.git
 cd subenum
+```
+
+### 2. Run the installer
+
+```bash
 chmod +x install.sh
 ./install.sh
 ```
 
-Ensure your shell environment is refreshed:
+### Installation Options
+
+```bash
+./install.sh              # Install all tools (skips already installed)
+./install.sh --check     # Check installation status
+./install.sh --help      # Show help message
+./install.sh --force     # Force reinstall all tools
+```
+
+### 3. Setup wordlist
+
+Create a wordlists directory in your home folder and add your wordlist:
+
+```bash
+mkdir -p ~/wordlists
+# Place your wordlist at: ~/wordlists/subdomains-top1million-110000.txt
+```
+
+### 4. Refresh shell
 
 ```bash
 source ~/.bashrc
@@ -78,22 +106,7 @@ source ~/.bashrc
 
 ---
 
-## 🔐 Configuration
-
-Before running Subenum, set up your API keys in `config.txt`:
-
-```bash
-# config.txt
-export GITHUB_TOKEN="YOUR_GITHUB_TOKEN"
-export GITLAB_TOKEN="YOUR_GITLAB_TOKEN"
-export SHODAN_API_KEY="YOUR_SHODAN_API_KEY"
-```
-
----
-
-## ✅ Ensure Tools Are Installed (Optional)
-
-Run the following script to check if all tools are installed and available:
+## ✅ Verify Installation
 
 ```bash
 chmod +x check.sh
@@ -106,76 +119,130 @@ chmod +x check.sh
 
 ```bash
 chmod +x subenum.sh
-./subenum.sh -d example.com -o subdomains.txt
+./subenum.sh -d example.com
 ```
 
 ### Options
 
-| Option                | Description                                                   |
-| --------------------- | ------------------------------------------------------------- |
-| `-d, --domain`        | Target domain                                                 |
-| `-l, --list`          | File with list of root domains                                |
-| `-u, --use`           | Comma-separated tools to **include** (e.g. `subfinder,amass`) |
-| `-e, --exclude`       | Comma-separated tools to **exclude**                          |
-| `-o, --output`        | Output filename (default: `<domain>-Date-Time.txt`)           |
-| `-s, --silent`        | Silent mode (outputs only subdomains)                         |
-| `-hp, --http-probe`   | Run HTTP probing after enumeration                            |
-| `-k, --keep`          | Keep temporary tool outputs                                   |
-| `-p, --parallel`      | Run tools in parallel (faster)                                |
-| `-h, --help`          | Show help                                                     |
-| `-v, --version`       | Show version                                                  |
-| `-ls, --list-sources` | List all integrated tools                                     |
+| Option | Description |
+|--------|-------------|
+| `-d, --domain` | Target domain |
+| `-l, --list` | File with list of root domains |
+| `-o, --output` | Output filename |
+| `-s, --silent` | Silent mode (outputs only subdomains) |
+| `-fb, --ffuf` | Run FFUF bruteforce after enumeration |
+| `-fw, --ffuf-wordlist` | Custom wordlist for FFUF (default: ~/wordlists/) |
+| `-ft, --ffuf-threads` | FFUF threads (default: 200) |
+| `-hp, --http-probe` | Run HTTP probing (requires -fb) |
+| `-ao, --asn-org` | Find IP ranges by organization name |
+| `-aa, --asn-asn` | Find IP ranges by ASN (e.g., AS13335) |
+| `-ad, --asn-domain` | Find IP ranges by domain |
+| `-ac, --asn-cert` | Search subdomains via certificate transparency |
+| `-an, --asn-enum` | Auto ASN enumeration using target domain |
+| `-p, --parallel` | Run tools in parallel (faster) |
+| `-h, --help` | Show help |
+| `-v, --version` | Show version |
+| `-ls, --list-sources` | List all integrated tools |
 
 ---
 
 ## 🧪 Examples
 
-### Enumerate a single domain
-
+### Basic subdomain enumeration
 ```bash
 ./subenum.sh -d example.com
 ```
 
-### Enumerate a list of domains in parallel
+### With FFUF bruteforce
+```bash
+./subenum.sh -d example.com -fb
+```
 
+### With FFUF + HTTP probing
+```bash
+./subenum.sh -d example.com -fb -hp
+```
+
+### Parallel mode (auto runs FFUF + HTTP probe)
+```bash
+./subenum.sh -d example.com -p
+```
+
+### With ASN enumeration
+```bash
+./subenum.sh -d example.com -an
+```
+
+### Full mode (parallel + ASN)
+```bash
+./subenum.sh -d example.com -p -an
+```
+
+### ASN by organization
+```bash
+./subenum.sh -ao "Google"
+```
+
+### ASN by number
+```bash
+./subenum.sh -aa AS13335
+```
+
+### Certificate transparency search
+```bash
+./subenum.sh -ac example.com
+```
+
+### Domain list in parallel
 ```bash
 ./subenum.sh -l domains.txt -p
 ```
 
-### Use only subfinder and amass
-
+### Custom wordlist
 ```bash
-./subenum.sh -d example.com -u subfinder,amass
-```
-
-### Exclude findomain and assetfinder
-
-```bash
-./subenum.sh -d example.com -e findomain,assetfinder
-```
-
-### Silent mode (just subdomains)
-
-```bash
-./subenum.sh -d example.com -s
+./subenum.sh -d example.com -fb -fw /path/to/wordlist.txt
 ```
 
 ---
 
-## 📁 Output
+## 📁 Output Structure
 
-* Results are saved in a deduplicated format.
-* Temporary files are removed unless `--keep` is used.
+```
+subenum/
+├── subenum.sh
+├── install.sh
+├── check.sh
+├── README.md
+│
+├── temp/                          # Temporary files (auto-cleaned)
+│   ├── tmp-subfinder-{domain}.txt
+│   ├── tmp-amass-{domain}.txt
+│   ├── tmp-assetfinder-{domain}.txt
+│   ├── tmp-findomain-{domain}.txt
+│   ├── subdomains.txt
+│   ├── ffufsubdomains.txt
+│   ├── finalsubdomains.txt
+│   ├── alivesubdomains.txt
+│   ├── filtersubdomains.txt
+│   ├── asn-numbers.txt
+│   ├── asn-cidrs.txt
+│   └── asn-ips.txt
+│
+└── results/                       # Final outputs (kept)
+    ├── alive-domains.txt         # (if -hp)
+    ├── https-subs.txt           # (if -hp)
+    └── asnresults.txt           # (if -ao/-aa/-ad/-ac/-an)
+```
 
 ---
 
-## 🧼 Cleanup
+## ⚠️ ASN Enumeration Safety
 
-To remove all temporary tool outputs:
-
-```bash
-rm tmp-*
-```
+The ASN enumeration module uses safe CIDR expansion:
+- Only expands CIDRs /22 and smaller (prevents memory issues)
+- Max 5,000 IPs to avoid system crashes
+- Skips large ranges to avoid memory issues
+- Filters results to match target domain
 
 ---
 
