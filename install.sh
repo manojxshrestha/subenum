@@ -53,12 +53,12 @@ check_tool() {
 check_installation() {
     echo -e "${bold}Checking installation status...${reset}"
     echo ""
-    
+
     echo -e "${bold}=== Core Tools ===${reset}"
     check_tool "parallel" "parallel"
     check_tool "jq" "jq"
     check_tool "curl" "curl"
-    
+
     echo ""
     echo -e "${bold}=== Subdomain Enumeration ===${reset}"
     check_tool "subfinder" "subfinder"
@@ -66,19 +66,19 @@ check_installation() {
     check_tool "assetfinder" "assetfinder"
     check_tool "findomain" "findomain"
     check_tool "anew" "anew"
-    
+
     echo ""
     echo -e "${bold}=== FFUF & HTTP Probing ===${reset}"
     check_tool "ffuf" "ffuf"
     check_tool "dnsx" "dnsx"
     check_tool "httpx" "httpx"
-    
+
     echo ""
     echo -e "${bold}=== ASN/Network Enumeration ===${reset}"
     check_tool "metabigor" "metabigor"
     check_tool "prips" "prips"
     check_tool "hakrevdns" "hakrevdns"
-    
+
     echo ""
     echo -e "${bold}=== Wordlists ===${reset}"
     if [ -f ~/wordlists/subdomains-top1million-110000.txt ]; then
@@ -86,7 +86,7 @@ check_installation() {
     else
         printf "${red}[✗]${reset} %-20s Not found\n" "wordlist"
     fi
-    
+
     echo ""
     echo "============================================"
 }
@@ -102,13 +102,13 @@ install_deps() {
 # Install Go tools
 install_go_tools() {
     print_info "Installing Go tools..."
-    
+
     # Ensure GOPATH/bin is in PATH
     if [[ ":$PATH:" != *":$HOME/go/bin:"* ]]; then
         echo 'export PATH="$PATH:$HOME/go/bin"' >> ~/.bashrc
         export PATH="$PATH:$HOME/go/bin"
     fi
-    
+
     # Install tools via Go
     if [ "$FORCE" = true ] || ! command -v subfinder &> /dev/null; then
         [ "$FORCE" = true ] && print_info "Forcing install: subfinder" || print_info "Installing: subfinder"
@@ -116,70 +116,70 @@ install_go_tools() {
     else
         print_warn "Skipping: subfinder (already installed)"
     fi
-    
+
     if [ "$FORCE" = true ] || ! command -v amass &> /dev/null; then
         [ "$FORCE" = true ] && print_info "Forcing install: amass" || print_info "Installing: amass"
         GO111MODULE=on go install -v github.com/owasp-amass/amass/v3/...@master
     else
         print_warn "Skipping: amass (already installed)"
     fi
-    
+
     if [ "$FORCE" = true ] || ! command -v assetfinder &> /dev/null; then
         [ "$FORCE" = true ] && print_info "Forcing install: assetfinder" || print_info "Installing: assetfinder"
         GO111MODULE=on go install github.com/tomnomnom/assetfinder@latest
     else
         print_warn "Skipping: assetfinder (already installed)"
     fi
-    
+
     if [ "$FORCE" = true ] || ! command -v dnsx &> /dev/null; then
         [ "$FORCE" = true ] && print_info "Forcing install: dnsx" || print_info "Installing: dnsx"
-        GO111MODULE=on go install -v github.com/projectdiscovery/dnsx@latest
+        GO111MODULE=on go install -v github.com/projectdiscovery/dnsx/cmd/dnsx@latest
     else
         print_warn "Skipping: dnsx (already installed)"
     fi
-    
+
     if [ "$FORCE" = true ] || ! command -v httpx &> /dev/null; then
         [ "$FORCE" = true ] && print_info "Forcing install: httpx" || print_info "Installing: httpx"
-        GO111MODULE=on go install -v github.com/projectdiscovery/httpx@latest
+        GO111MODULE=on go install -v github.com/projectdiscovery/httpx/cmd/httpx@latest
     else
         print_warn "Skipping: httpx (already installed)"
     fi
-    
+
     if [ "$FORCE" = true ] || ! command -v ffuf &> /dev/null; then
         [ "$FORCE" = true ] && print_info "Forcing install: ffuf" || print_info "Installing: ffuf"
-        GO111MODULE=on go install -v github.com/ffuf/ffuf@latest
+        GO111MODULE=on go install -v github.com/ffuf/ffuf/v2@latest
     else
         print_warn "Skipping: ffuf (already installed)"
     fi
-    
+
     if [ "$FORCE" = true ] || ! command -v anew &> /dev/null; then
         [ "$FORCE" = true ] && print_info "Forcing install: anew" || print_info "Installing: anew"
         GO111MODULE=on go install -v github.com/tomnomnom/anew@latest
     else
         print_warn "Skipping: anew (already installed)"
     fi
-    
+
     if [ "$FORCE" = true ] || ! command -v metabigor &> /dev/null; then
         [ "$FORCE" = true ] && print_info "Forcing install: metabigor" || print_info "Installing: metabigor"
         GO111MODULE=on go install -v github.com/j3ssie/metabigor@latest
     else
         print_warn "Skipping: metabigor (already installed)"
     fi
-    
+
     if [ "$FORCE" = true ] || ! command -v hakrevdns &> /dev/null; then
         [ "$FORCE" = true ] && print_info "Forcing install: hakrevdns" || print_info "Installing: hakrevdns"
         GO111MODULE=on go install github.com/hakluke/hakrevdns@latest
     else
         print_warn "Skipping: hakrevdns (already installed)"
     fi
-    
+
     print_info "Go tools installed successfully"
 }
 
 # Install Findomain
 install_findomain() {
     print_info "Installing Findomain..."
-    
+
     if [ "$FORCE" = true ] || ! command -v findomain &> /dev/null; then
         [ "$FORCE" = true ] && print_info "Forcing install: findomain" || print_info "Installing: findomain"
         wget -q https://github.com/Findomain/Findomain/releases/latest/download/findomain-linux.zip
@@ -196,7 +196,7 @@ install_findomain() {
 # Install prips
 install_prips() {
     print_info "Installing prips..."
-    
+
     if [ "$FORCE" = true ] || ! command -v prips &> /dev/null; then
         [ "$FORCE" = true ] && print_info "Forcing install: prips" || print_info "Installing: prips"
         GO111MODULE=on go install github.com/imusabkhan/prips@latest
@@ -210,12 +210,12 @@ install_prips() {
 install_all() {
     print_info "Starting installation..."
     echo ""
-    
+
     install_deps
     install_go_tools
     install_findomain
     install_prips
-    
+
     print_info "Setting up wordlists directory..."
     if [ ! -d ~/wordlists ]; then
         mkdir -p ~/wordlists
@@ -223,7 +223,7 @@ install_all() {
     else
         print_warn "Wordlists directory already exists"
     fi
-    
+
     echo ""
     print_info "✔ All tools installed successfully!"
     print_info "Make sure to reload your shell (run: source ~/.bashrc)"
