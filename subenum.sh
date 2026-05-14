@@ -224,7 +224,7 @@ run_ffuf() {
     ffuf -u "https://FUZZ.$domain" -w "$FFUF_WORDLIST" -t "$FFUF_THREADS" -timeout 20 -rate 100 -noninteractive -o "$OUTPUT_DIR"/temp/ffuf.json -of json </dev/null 2>&1 || true
     
     if [ -f "$OUTPUT_DIR/temp/ffuf.json" ]; then
-        jq -r '.results[].url' "$OUTPUT_DIR/temp/ffuf.json" 2>/dev/null > "$OUTPUT_DIR"/temp/ffufsubdomains.txt
+        jq -r '.results[].url' "$OUTPUT_DIR/temp/ffuf.json" 2>/dev/null | sed 's|^https\?://||' | sed 's|/.*||' > "$OUTPUT_DIR"/temp/ffufsubdomains.txt
         rm -f "$OUTPUT_DIR/temp/ffuf.json"
         ffuf_count=$(wc -l < "$OUTPUT_DIR/temp/ffufsubdomains.txt" 2>/dev/null || echo 0)
         echo -e "${GREEN}${BOLD}[*] FFUF: $ffuf_count subdomains discovered${NC}"
