@@ -30,7 +30,7 @@ An Automated Subdomain Enumeration Tool with FFUF bruteforce, HTTP probing, and 
 
 ## Features
 
-* Passive subdomain enumeration using 4 tools (subfinder, amass, assetfinder, findomain)
+* Passive subdomain enumeration using 3 tools (subfinder, assetfinder, findomain)
 * Select or exclude specific tools with `-u` / `-e`
 * FFUF bruteforce for additional subdomain discovery
 * HTTP/HTTPS probing with status codes, titles, and tech detection
@@ -46,7 +46,6 @@ An Automated Subdomain Enumeration Tool with FFUF bruteforce, HTTP probing, and 
 
 ### Subdomain Enumeration
 * [subfinder](https://github.com/projectdiscovery/subfinder)
-* [amass](https://github.com/owasp-amass/amass)
 * [assetfinder](https://github.com/tomnomnom/assetfinder)
 * [findomain](https://github.com/Findomain/Findomain)
 
@@ -77,7 +76,7 @@ ca-certificates  # SSL cert bundle for HTTPS downloads
 ```
 
 ### Go tools installed:
-`subfinder`, `amass`, `assetfinder`, `dnsx`, `httpx`, `ffuf`, `anew`, `metabigor`, `prips`
+`subfinder`, `assetfinder`, `dnsx`, `httpx`, `ffuf`, `anew`, `metabigor`, `prips`
 
 ### 1. Clone and install
 
@@ -135,7 +134,7 @@ chmod +x subenum.sh
 |--------|-------------|
 | `-d, --domain` | Target domain |
 | `-l, --list` | File with list of root domains |
-| `-u, --use` | Comma-separated tools to use (e.g. subfinder,amass) |
+| `-u, --use` | Comma-separated tools to use (e.g. subfinder,assetfinder) |
 | `-e, --exclude` | Comma-separated tools to exclude (e.g. findomain) |
 | `-o, --output` | Output filename |
 | `-s, --silent` | Silent mode (outputs only subdomains) |
@@ -170,7 +169,7 @@ chmod +x subenum.sh
 
 ### Exclude a tool
 ```bash
-./subenum.sh -d example.com -e amass
+./subenum.sh -d example.com -e findomain
 ```
 
 ### With FFUF bruteforce
@@ -238,7 +237,7 @@ chmod +x subenum.sh
 ## Workflow Diagrams
 
 ### `./subenum.sh -d example.com -an`
-ASN enumeration runs first (discovers IP ranges via domain), then the 4 passive tools enumerate subdomains, then results merge into one file.
+ASN enumeration runs first (discovers IP ranges via domain), then the 3 passive tools enumerate subdomains, then results merge into one file.
 
 ```mermaid
 graph LR
@@ -248,14 +247,12 @@ graph LR
     D --> E["asn/hostnames.txt"]
 
     A --> F["Subfinder"]
-    A --> G["Amass"]
-    A --> H["Assetfinder"]
-    A --> I["Findomain"]
-    F --> J["sort -u merge"]
-    G --> J
-    H --> J
-    I --> J
-    J --> K["all-subdomains.txt"]
+    A --> G["Assetfinder"]
+    A --> H["Findomain"]
+    F --> I["sort -u merge"]
+    G --> I
+    H --> I
+    I --> J["all-subdomains.txt"]
 ```
 
 ### `./subenum.sh -d example.com -p -an`
@@ -269,18 +266,16 @@ graph LR
     D --> E["asn/hostnames.txt"]
 
     A --> F["Subfinder<br/>(parallel)"]
-    A --> G["Amass<br/>(parallel)"]
-    A --> H["Assetfinder<br/>(parallel)"]
-    A --> I["Findomain<br/>(parallel)"]
-    F --> J["sort -u merge"]
-    G --> J
-    H --> J
-    I --> J
-    J --> K["all-subdomains.txt"]
-    K --> L["FFUF bruteforce"]
-    L --> M["HTTP probe<br/>(dnsx + httpx)"]
-    M --> N["alive/alive-domains.txt"]
-    M --> O["alive/https-subs.txt"]
+    A --> G["Assetfinder<br/>(parallel)"]
+    A --> H["Findomain<br/>(parallel)"]
+    F --> I["sort -u merge"]
+    G --> I
+    H --> I
+    I --> J["all-subdomains.txt"]
+    J --> K["FFUF bruteforce"]
+    K --> L["HTTP probe<br/>(dnsx + httpx)"]
+    L --> M["alive/alive-domains.txt"]
+    L --> N["alive/https-subs.txt"]
 ```
 
 ### `./subenum.sh -d example.com -fb -hp`
@@ -289,38 +284,35 @@ Standard enumeration, then FFUF bruteforce on discovered subdomains, then HTTP p
 ```mermaid
 graph TD
     A["-d example.com"] --> B["Subfinder"]
-    A --> C["Amass"]
-    A --> D["Assetfinder"]
-    A --> E["Findomain"]
-    B --> F["sort -u merge"]
-    C --> F
-    D --> F
-    E --> F
-    F --> G["all-subdomains.txt"]
-    G --> H["FFUF -fb"]
-    H --> I["FFUF subdomains"]
-    G --> J["Merge + sort -u"]
-    I --> J
-    J --> K["all-subdomains-ffuf.txt"]
-    K --> L["dnsx -a resolution"]
-    L --> M["httpx probe"]
-    M --> N["alive/alive-domains.txt"]
-    M --> O["alive/https-subs.txt"]
+    A --> C["Assetfinder"]
+    A --> D["Findomain"]
+    B --> E["sort -u merge"]
+    C --> E
+    D --> E
+    E --> F["all-subdomains.txt"]
+    F --> G["FFUF -fb"]
+    G --> H["FFUF subdomains"]
+    F --> I["Merge + sort -u"]
+    H --> I
+    I --> J["all-subdomains-ffuf.txt"]
+    J --> K["dnsx -a resolution"]
+    K --> L["httpx probe"]
+    L --> M["alive/alive-domains.txt"]
+    L --> N["alive/https-subs.txt"]
 ```
 
 ---
 
 ## Output Structure
 
-Every run creates a timestamped directory. No data is ever overwritten.
+Every run creates a clean output directory. Multiple runs on the same domain overwrite previous results.
 
 ```
-outputs/example.com-2026-05-13_14-30-00/
+outputs/example.com/
     ├── all-subdomains.txt          # Merged subdomains (kept if -hp NOT used)
     ├── all-subdomains-ffuf.txt     # Merged + FFUF results (kept if -fb AND -hp NOT used)
     ├── temp/                       # Auto-cleaned on normal exit
     │   ├── tmp-subfinder-{domain}.txt
-    │   ├── tmp-amass-{domain}.txt
     │   ├── tmp-assetfinder-{domain}.txt
     │   ├── tmp-findomain-{domain}.txt
     │   ├── subdomains.txt

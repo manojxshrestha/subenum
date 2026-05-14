@@ -115,13 +115,6 @@ install_go_tools() {
         print_warn "Skipping: subfinder (already installed)"
     fi
 
-    if [ "$FORCE" = true ] || ! command -v amass &> /dev/null; then
-        [ "$FORCE" = true ] && print_info "Forcing install: amass" || print_info "Installing: amass"
-        GO111MODULE=on go install -v github.com/owasp-amass/amass/v3/...@master
-    else
-        print_warn "Skipping: amass (already installed)"
-    fi
-
     if [ "$FORCE" = true ] || ! command -v assetfinder &> /dev/null; then
         [ "$FORCE" = true ] && print_info "Forcing install: assetfinder" || print_info "Installing: assetfinder"
         GO111MODULE=on go install github.com/tomnomnom/assetfinder@latest

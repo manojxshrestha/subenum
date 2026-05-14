@@ -87,7 +87,6 @@ EOF
 ListSources() {
     echo -e "${BOLD}${CYAN}Available Sources/Tools:${NC}"
     echo "Subfinder"
-    echo "Amass"
     echo "Assetfinder"
     echo "Findomain"
     exit 1
@@ -147,28 +146,6 @@ Subfinder() {
             printf "\r${GREEN}${BOLD}[+] Subfinder completed${NC}          \n"
         fi
         echo -e "${GREEN}${BOLD}[*] Subfinder: $(wc -l < "$OUTPUT_DIR"/temp/tmp-subfinder-"$domain") subdomains${NC}"
-    fi
-}
-
-Amass() {
-    tool_enabled "amass" || return
-    if [ "$silent" == True ]; then
-        amass enum -d "$domain" 2>/dev/null 1>&2
-        amass subs -names -d "$domain" 2>/dev/null | anew "$OUTPUT_DIR"/temp/temp-subenum-"$domain".txt
-    else
-        if [[ ${PARALLEL} == True ]]; then
-            echo -e "${BOLD}${MAGENTA}[*] Running Amass...${NC}"
-            amass enum -d "$domain" 2>/dev/null 1>&2
-            amass subs -names -d "$domain" 2>/dev/null > "$OUTPUT_DIR"/temp/tmp-amass-"$domain"
-        else
-            spinner "${BOLD}Running Amass${NC}" &
-            PID=$!
-            amass enum -d "$domain" 2>/dev/null 1>&2
-            amass subs -names -d "$domain" 2>/dev/null > "$OUTPUT_DIR"/temp/tmp-amass-"$domain"
-            kill "$PID" 2>/dev/null
-            printf "\r${GREEN}${BOLD}[+] Amass completed${NC}          \n"
-        fi
-        echo -e "${GREEN}${BOLD}[*] Amass: $(wc -l < "$OUTPUT_DIR"/temp/tmp-amass-"$domain") subdomains${NC}"
     fi
 }
 
@@ -592,7 +569,6 @@ if [ -n "$list" ]; then
         echo -e "${BOLD}${GREEN}[*] Enumerating: $domain${NC}"
         # Call enumeration functions
         Subfinder
-        Amass
         Assetfinder
         Findomain
 
@@ -614,7 +590,6 @@ else
     echo -e "${BOLD}${GREEN}[*] Enumerating: $domain${NC}"
     # Call enumeration functions
     Subfinder
-    Amass
     Assetfinder
     Findomain
 
