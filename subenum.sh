@@ -153,15 +153,18 @@ Subfinder() {
 Amass() {
     tool_enabled "amass" || return
     if [ "$silent" == True ]; then
-        amass enum -d "$domain" 2>/dev/null | anew "$OUTPUT_DIR"/temp/temp-subenum-"$domain".txt
+        amass enum -d "$domain" 2>/dev/null 1>&2
+        amass subs -names -d "$domain" 2>/dev/null | anew "$OUTPUT_DIR"/temp/temp-subenum-"$domain".txt
     else
         if [[ ${PARALLEL} == True ]]; then
             echo -e "${BOLD}${MAGENTA}[*] Running Amass...${NC}"
-            amass enum -d "$domain" 1> "$OUTPUT_DIR"/temp/tmp-amass-"$domain" 2>/dev/null
+            amass enum -d "$domain" 2>/dev/null 1>&2
+            amass subs -names -d "$domain" 2>/dev/null > "$OUTPUT_DIR"/temp/tmp-amass-"$domain"
         else
             spinner "${BOLD}Running Amass${NC}" &
             PID=$!
-            amass enum -d "$domain" 1> "$OUTPUT_DIR"/temp/tmp-amass-"$domain" 2>/dev/null
+            amass enum -d "$domain" 2>/dev/null 1>&2
+            amass subs -names -d "$domain" 2>/dev/null > "$OUTPUT_DIR"/temp/tmp-amass-"$domain"
             kill "$PID" 2>/dev/null
             printf "\r${GREEN}${BOLD}[+] Amass completed${NC}          \n"
         fi
@@ -531,9 +534,8 @@ DEFAULT_WORDLIST="$HOME/wordlists/subdomains-top1million-110000.txt"
 FFUF_WORDLIST="${ffuf_wordlist:-$DEFAULT_WORDLIST}"
 FFUF_THREADS="${ffuf_threads:-200}"
 
-# Create timestamped output directory
-TIMESTAMP=$(date +%Y-%m-%d_%H-%M-%S)
-OUTPUT_DIR="outputs/${domain:-multi}-${TIMESTAMP}"
+# Create output directory
+OUTPUT_DIR="outputs/${domain:-multi}"
 mkdir -p "$OUTPUT_DIR"/{temp,alive,asn}
 
 # Handle Ctrl+C gracefully
