@@ -364,6 +364,7 @@ run_asn_enum() {
                     prips "$cidr" 2>/dev/null >> "$OUTPUT_DIR"/temp/asn-ips.txt
                     estimated_total=$((estimated_total + cidr_ips))
                 fi
+                ((expanded_count++))
             fi
         done < "$OUTPUT_DIR/temp/asn-cidrs.txt"
         
@@ -377,7 +378,7 @@ run_asn_enum() {
             echo -e "${GREEN}${BOLD}[*] Expanded to $ip_count IP addresses${NC}"
             
             echo -e "${BOLD}${MAGENTA}[*] Finding live IPs with HTTP service (httpx)...${NC}"
-            cat "$OUTPUT_DIR/temp/asn-ips.txt" | httpx -threads 300 -retries 2 2>&1 | grep -E "^http" | awk '{print $1}' | sed 's|https\?://||' | cut -d':' -f1 | sort -u > "$OUTPUT_DIR"/temp/asn-live-ips.txt
+            head -5000 "$OUTPUT_DIR/temp/asn-ips.txt" | httpx -ports 80,443 -threads 300 -timeout 5 -retries 1 -silent 2>/dev/null | awk '{print $1}' | sed 's|https\?://||' | sed 's|:.*||' | sort -u > "$OUTPUT_DIR"/temp/asn-live-ips.txt
             
             live_ip_count=$(wc -l < "$OUTPUT_DIR/temp/asn-live-ips.txt" 2>/dev/null || echo 0)
             echo -e "${GREEN}${BOLD}[*] Found $live_ip_count live IPs with HTTP${NC}"
