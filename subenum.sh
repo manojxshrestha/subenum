@@ -343,15 +343,27 @@ run_asn_enum() {
             if [[ "$cidr" =~ ^([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)/([0-9]+)$ ]]; then
                 mask="${BASH_REMATCH[2]}"
                 
-                if [ "$mask" -lt 22 ] || [ "$mask" -gt 24 ]; then
+                if [ "$mask" -lt 16 ] || [ "$mask" -gt 24 ]; then
                     echo -e "${YELLOW}${BOLD}[-] Skipping large CIDR: $cidr${NC}"
                     ((skipped_count++))
                     continue
                 fi
                 
-                estimated_total=$((estimated_total + 2**(32-mask)))
-                prips "$cidr" 2>/dev/null >> "$OUTPUT_DIR"/temp/asn-ips.txt
-                ((expanded_count++))
+                local cidr_ips=$((2**(32-mask)))
+                if [ "$estimated_total" -ge 50000 ]; then
+                    echo -e "${YELLOW}${BOLD}[-] Reached 50000 IP limit, skipping: $cidr${NC}"
+                    ((skipped_count++))
+                    continue
+                fi
+                if [ $((estimated_total + cidr_ips)) -gt 50000 ]; then
+                    echo -e "${YELLOW}${BOLD}[-] Would exceed 50000 IP limit, truncating: $cidr${NC}"
+                    local remaining=$((50000 - estimated_total))
+                    prips "$cidr" 2>/dev/null | head -"$remaining" >> "$OUTPUT_DIR"/temp/asn-ips.txt
+                    estimated_total=50000
+                else
+                    prips "$cidr" 2>/dev/null >> "$OUTPUT_DIR"/temp/asn-ips.txt
+                    estimated_total=$((estimated_total + cidr_ips))
+                fi
             fi
         done < "$OUTPUT_DIR/temp/asn-cidrs.txt"
         

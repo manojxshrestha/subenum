@@ -38,7 +38,7 @@ An Automated Subdomain Enumeration Tool with FFUF bruteforce, HTTP probing, and 
 * Certificate transparency search
 * Timestamped per-scan output directories (never overwrite results)
 * Sensitive domain protection (`--exclude-sensitive`)
-* Safe CIDR expansion (only `/22` to `/24`, prevents memory issues)
+* Safe CIDR expansion (`/16` to `/24`, max 50000 IPs)
 
 ---
 
@@ -352,7 +352,7 @@ outputs/example.com-2026-05-13_14-30-00/
 ```mermaid
 graph TD
     A["Input<br/>(org / ASN / domain)"] --> B["metabigor net"]
-    B --> C["CIDR ranges<br/>(/22 to /24 only)"]
+    B --> C["CIDR ranges<br/>(/16 to /24, max 50K IPs)"]
     C --> D["prips"]
     D --> E["Expanded IPs"]
     E --> F["httpx"]
@@ -388,10 +388,10 @@ Enable with `-es` / `--exclude-sensitive`. This only checks the **target domain*
 
 ## ASN Safety
 
-- Only expands CIDRs `/22` to `/24` (256-1024 IPs each, prevents memory issues)
-- Skips large ranges (e.g. `/8`, `/16`) automatically
+- Only expands CIDRs `/16` to `/24` (catches real ISP/bank ranges, skips `/8`/`/15` etc.)
+- Maximum 50000 IPs per scan (prevents httpx from running indefinitely)
 - Filters reverse DNS results to match target domain
-- No hardcoded IP blocklist — the CIDR size filter handles all safety cases
+- No hardcoded IP blocklist — CIDR size filter + IP cap handle all safety cases
 
 ---
 
