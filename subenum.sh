@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Fix for metabigor Go 1.26 compatibility
-export ASSUME_NO_MOVING_GC_UNSAFE_RISK_IT_WITH=go1.26
+export ASSUME_NO_MOVING_GC_UNSAFE_RISK_IT_WITH=go1.24
 
 # Colors and styles using tput
 BOLD=$(tput bold)
@@ -63,6 +63,7 @@ Usage() {
     \r    -ad, --asn-domain      - Find IP ranges by domain
     \r    -ac, --asn-cert        - Search subdomains via certificate transparency
     \r    -an, --asn-enum        - Auto ASN enumeration using target domain
+    \r    -es, --exclude-sensitive - Block sensitive domains (gov, mil, edu, bank, healthcare)
     \r    -p, --parallel          - Run parallely for faster results. Doesn't work with -e/--exclude or -u/--use
     \r    -h, --help              - Display this help message and exit
     \r    -v, --version           - Display the version and exit
@@ -89,100 +90,134 @@ ListSources() {
     echo "Amass"
     echo "Assetfinder"
     echo "Findomain"
-    echo "Github-subdomains"
-    echo "Gitlab-subdomains"
-    echo "Cero"
-    echo "Shosubgo"
-    echo "Crtsh"
-    echo "Anubis"
     exit 1
 }
 
+tool_enabled() {
+    local tool="$1"
+    if [ -n "$use" ]; then
+        echo "$use" | tr ',' '\n' | grep -qi "$tool" || return 1
+    fi
+    if [ -n "$exclude" ]; then
+        echo "$exclude" | tr ',' '\n' | grep -qi "$tool" && return 1
+    fi
+    return 0
+}
+
+is_sensitive_domain() {
+    local check_domain="$1"
+    local patterns_file="config/sensitive-domains.txt"
+
+    [[ ! -f "$patterns_file" ]] && return 1
+
+    while IFS= read -r pattern; do
+        [[ -z "$pattern" ]] && continue
+        [[ "$pattern" =~ ^[[:space:]]*# ]] && continue
+        pattern=$(echo "$pattern" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        [[ -z "$pattern" ]] && continue
+
+        if [[ "$pattern" == \*.* ]]; then
+            local suffix="${pattern#\*.}"
+            if [[ "$check_domain" == *".$suffix" ]] || [[ "$check_domain" == "$suffix" ]]; then
+                return 0
+            fi
+        else
+            if [[ "$check_domain" == "$pattern" ]] || [[ "$check_domain" == *".$pattern" ]]; then
+                return 0
+            fi
+        fi
+    done < "$patterns_file"
+
+    return 1
+}
+
 Subfinder() {
+    tool_enabled "subfinder" || return
     if [ "$silent" == True ]; then
-        subfinder -all -silent -d "$domain" 2>/dev/null | anew temp-subenum-"$domain".txt
+        subfinder -all -silent -d "$domain" 2>/dev/null | anew "$OUTPUT_DIR"/temp/temp-subenum-"$domain".txt
     else
         if [[ ${PARALLEL} == True ]]; then
             echo -e "${BOLD}${MAGENTA}[*] Running Subfinder...${NC}"
-            subfinder -all -silent -d "$domain" 1> temp/tmp-subfinder-"$domain" 2>/dev/null
+            subfinder -all -silent -d "$domain" 1> "$OUTPUT_DIR"/temp/tmp-subfinder-"$domain" 2>/dev/null
         else
             spinner "${BOLD}Running Subfinder${NC}" &
             PID=$!
-            subfinder -all -silent -d "$domain" 1> temp/tmp-subfinder-"$domain" 2>/dev/null
+            subfinder -all -silent -d "$domain" 1> "$OUTPUT_DIR"/temp/tmp-subfinder-"$domain" 2>/dev/null
             kill "$PID" 2>/dev/null
             printf "\r${GREEN}${BOLD}[+] Subfinder completed${NC}          \n"
         fi
-        echo -e "${GREEN}${BOLD}[*] Subfinder: $(wc -l < temp/tmp-subfinder-"$domain") subdomains${NC}"
+        echo -e "${GREEN}${BOLD}[*] Subfinder: $(wc -l < "$OUTPUT_DIR"/temp/tmp-subfinder-"$domain") subdomains${NC}"
     fi
 }
 
 Amass() {
+    tool_enabled "amass" || return
     if [ "$silent" == True ]; then
-        amass enum -passive -d "$domain" 2>/dev/null | anew temp-subenum-"$domain".txt
+        amass enum -d "$domain" 2>/dev/null | anew "$OUTPUT_DIR"/temp/temp-subenum-"$domain".txt
     else
         if [[ ${PARALLEL} == True ]]; then
             echo -e "${BOLD}${MAGENTA}[*] Running Amass...${NC}"
-            amass enum -passive -d "$domain" 1> temp/tmp-amass-"$domain" 2>/dev/null
+            amass enum -d "$domain" 1> "$OUTPUT_DIR"/temp/tmp-amass-"$domain" 2>/dev/null
         else
             spinner "${BOLD}Running Amass${NC}" &
             PID=$!
-            amass enum -passive -d "$domain" 1> temp/tmp-amass-"$domain" 2>/dev/null
+            amass enum -d "$domain" 1> "$OUTPUT_DIR"/temp/tmp-amass-"$domain" 2>/dev/null
             kill "$PID" 2>/dev/null
             printf "\r${GREEN}${BOLD}[+] Amass completed${NC}          \n"
         fi
-        echo -e "${GREEN}${BOLD}[*] Amass: $(wc -l < temp/tmp-amass-"$domain") subdomains${NC}"
+        echo -e "${GREEN}${BOLD}[*] Amass: $(wc -l < "$OUTPUT_DIR"/temp/tmp-amass-"$domain") subdomains${NC}"
     fi
 }
 
 Assetfinder() {
+    tool_enabled "assetfinder" || return
     if ! command -v assetfinder >/dev/null; then
         echo -e "${YELLOW}${BOLD}[-] assetfinder not installed, skipping${NC}"
         return
     fi
     if [ "$silent" == True ]; then
-        assetfinder --subs-only "$domain" 2>/dev/null | anew temp-subenum-"$domain".txt
+        assetfinder --subs-only "$domain" 2>/dev/null | anew "$OUTPUT_DIR"/temp/temp-subenum-"$domain".txt
     else
         if [[ ${PARALLEL} == True ]]; then
             echo -e "${BOLD}${MAGENTA}[*] Running Assetfinder...${NC}"
-            assetfinder --subs-only "$domain" > temp/tmp-assetfinder-"$domain" 2>/dev/null
+            assetfinder --subs-only "$domain" > "$OUTPUT_DIR"/temp/tmp-assetfinder-"$domain" 2>/dev/null
         else
             spinner "${BOLD}Running Assetfinder${NC}" &
             PID=$!
-            assetfinder --subs-only "$domain" > temp/tmp-assetfinder-"$domain" 2>/dev/null
+            assetfinder --subs-only "$domain" > "$OUTPUT_DIR"/temp/tmp-assetfinder-"$domain" 2>/dev/null
             kill "$PID" 2>/dev/null
             printf "\r${GREEN}${BOLD}[+] Assetfinder completed${NC}          \n"
         fi
-        echo -e "${GREEN}${BOLD}[*] Assetfinder: $(wc -l < temp/tmp-assetfinder-"$domain") subdomains${NC}"
+        echo -e "${GREEN}${BOLD}[*] Assetfinder: $(wc -l < "$OUTPUT_DIR"/temp/tmp-assetfinder-"$domain") subdomains${NC}"
     fi
 }
 
 Findomain() {
+    tool_enabled "findomain" || return
     if [ "$silent" == True ]; then
-        findomain -t "$domain" -q -r 2>/dev/null | anew temp-subenum-"$domain".txt
+        findomain -t "$domain" -q -r 2>/dev/null | anew "$OUTPUT_DIR"/temp/temp-subenum-"$domain".txt
     else
         if [[ ${PARALLEL} == True ]]; then
             echo -e "${BOLD}${MAGENTA}[*] Running Findomain...${NC}"
-            findomain -t "$domain" -q -r > temp/tmp-findomain-"$domain" 2>/dev/null
+            findomain -t "$domain" -q -r > "$OUTPUT_DIR"/temp/tmp-findomain-"$domain" 2>/dev/null
         else
             spinner "${BOLD}Running Findomain${NC}" &
             PID=$!
-            findomain -t "$domain" -q -r > temp/tmp-findomain-"$domain" 2>/dev/null
+            findomain -t "$domain" -q -r > "$OUTPUT_DIR"/temp/tmp-findomain-"$domain" 2>/dev/null
             kill "$PID" 2>/dev/null
             printf "\r${GREEN}${BOLD}[+] Findomain completed${NC}          \n"
         fi
-        echo -e "${GREEN}${BOLD}[*] Findomain: $(wc -l < temp/tmp-findomain-"$domain") subdomains${NC}"
+        echo -e "${GREEN}${BOLD}[*] Findomain: $(wc -l < "$OUTPUT_DIR"/temp/tmp-findomain-"$domain") subdomains${NC}"
     fi
 }
 
 Out() {
     local output=$1
-    # Remove previous output file if exists
-    [ -f "temp/$output" ] && rm -f "temp/$output"
+    [ -f "$OUTPUT_DIR/temp/$output" ] && rm -f "$OUTPUT_DIR/temp/$output"
 
-    # Merge all temp files starting with tmp-
-    if compgen -G "temp/tmp-*" > /dev/null; then
-        sort -u temp/tmp-* > "temp/$output"
-        result=$(wc -l < "temp/$output")
+    if compgen -G "$OUTPUT_DIR/temp/tmp-*" > /dev/null; then
+        sort -u "$OUTPUT_DIR"/temp/tmp-* > "$OUTPUT_DIR/temp/$output"
+        result=$(wc -l < "$OUTPUT_DIR/temp/$output")
         echo -e "${GREEN}${BOLD}[+] Total unique subdomains found: $result${NC}"
     else
         echo -e "${YELLOW}${BOLD}[-] No temporary files found.${NC}"
@@ -206,12 +241,12 @@ run_ffuf() {
     
     echo -e "${BOLD}${MAGENTA}[*] Running FFUF bruteforce on $domain...${NC}"
     
-    ffuf -u "https://FUZZ.$domain" -w "$FFUF_WORDLIST" -t "$FFUF_THREADS" -timeout 20 -rate 100 -noninteractive -o temp/ffuf.json -of json </dev/null 2>&1 || true
+    ffuf -u "https://FUZZ.$domain" -w "$FFUF_WORDLIST" -t "$FFUF_THREADS" -timeout 20 -rate 100 -noninteractive -o "$OUTPUT_DIR"/temp/ffuf.json -of json </dev/null 2>&1 || true
     
-    if [ -f temp/ffuf.json ]; then
-        jq -r '.results[].url' temp/ffuf.json 2>/dev/null > temp/ffufsubdomains.txt
-        rm -f temp/ffuf.json
-        ffuf_count=$(wc -l < temp/ffufsubdomains.txt 2>/dev/null || echo 0)
+    if [ -f "$OUTPUT_DIR/temp/ffuf.json" ]; then
+        jq -r '.results[].url' "$OUTPUT_DIR/temp/ffuf.json" 2>/dev/null > "$OUTPUT_DIR"/temp/ffufsubdomains.txt
+        rm -f "$OUTPUT_DIR/temp/ffuf.json"
+        ffuf_count=$(wc -l < "$OUTPUT_DIR/temp/ffufsubdomains.txt" 2>/dev/null || echo 0)
         echo -e "${GREEN}${BOLD}[*] FFUF: $ffuf_count subdomains discovered${NC}"
     else
         echo -e "${YELLOW}${BOLD}[-] FFUF failed to produce output${NC}"
@@ -235,23 +270,19 @@ run_http_probe() {
     echo -e "${BOLD}${MAGENTA}[*] Running DNSX + HTTPX probe...${NC}"
     
     # Combine subdomains + ffuf results
-    cat "temp/$subdomains_file" temp/ffufsubdomains.txt 2>/dev/null | sort -u > temp/finalsubdomains.txt
+    cat "$OUTPUT_DIR/temp/$subdomains_file" "$OUTPUT_DIR"/temp/ffufsubdomains.txt 2>/dev/null | sort -u > "$OUTPUT_DIR"/temp/finalsubdomains.txt
     
-    # DNS resolution + HTTP probing
-    dnsx -l temp/finalsubdomains.txt -silent -a 2>/dev/null | cut -d' ' -f1 | httpx -ports 80,443 -status-code -mc 200,301,302,403,500 -title -tech-detect -web-server -threads 100 -silent -o temp/alivesubdomains.txt 2>/dev/null
+    dnsx -l "$OUTPUT_DIR/temp/finalsubdomains.txt" -silent -a 2>/dev/null | cut -d' ' -f1 | httpx -ports 80,443 -status-code -mc 200,301,302,403,500 -title -tech-detect -web-server -threads 100 -silent -o "$OUTPUT_DIR"/temp/alivesubdomains.txt 2>/dev/null
     
-    # Filter and extract clean domains
-    cat temp/alivesubdomains.txt 2>/dev/null | sort -u > temp/filtersubdomains.txt
+    cat "$OUTPUT_DIR/temp/alivesubdomains.txt" 2>/dev/null | sort -u > "$OUTPUT_DIR"/temp/filtersubdomains.txt
     
-    # Extract clean domain names - save to results
-    cat temp/filtersubdomains.txt | awk '{print $1}' | sed 's|https\?://||' | sed 's|/$||' | sort -u > results/alive-domains.txt
+    cat "$OUTPUT_DIR/temp/filtersubdomains.txt" | awk '{print $1}' | sed 's|https\?://||' | sed 's|/$||' | sort -u > "$OUTPUT_DIR"/alive/alive-domains.txt
     
-    # Extract HTTPS URLs - save to results
-    cut -d' ' -f1 temp/filtersubdomains.txt | grep "^https" > results/https-subs.txt
+    cut -d' ' -f1 "$OUTPUT_DIR/temp/filtersubdomains.txt" | grep "^https" > "$OUTPUT_DIR"/alive/https-subs.txt
     
-    alive_count=$(wc -l < temp/alivesubdomains.txt 2>/dev/null || echo 0)
-    domains_count=$(wc -l < results/alive-domains.txt 2>/dev/null || echo 0)
-    https_count=$(wc -l < results/https-subs.txt 2>/dev/null || echo 0)
+    alive_count=$(wc -l < "$OUTPUT_DIR/temp/alivesubdomains.txt" 2>/dev/null || echo 0)
+    domains_count=$(wc -l < "$OUTPUT_DIR/alive/alive-domains.txt" 2>/dev/null || echo 0)
+    https_count=$(wc -l < "$OUTPUT_DIR/alive/https-subs.txt" 2>/dev/null || echo 0)
     
     echo -e "${GREEN}${BOLD}[*] HTTP Probe: $alive_count alive subdomains found${NC}"
     echo -e "${GREEN}${BOLD}[*] Clean domains: $domains_count${NC}"
@@ -276,51 +307,37 @@ run_asn_enum() {
     
     if [ -n "$asn_org" ]; then
         echo -e "${BOLD}${MAGENTA}[*] Running ASN enumeration by organization: $asn_org${NC}"
-        echo "$asn_org" | metabigor net --org -v 2>/dev/null | tee temp/metabigor-output.txt | grep -E "^[0-9]+ - " | awk -F' - ' '{print $1}' | sort -u > temp/asn-numbers.txt
-        cat temp/metabigor-output.txt | grep -E "^[0-9]+ - .*/[0-9]+" | awk -F' - ' '{print $2}' | sort -u > temp/asn-cidrs.txt
+        echo "$asn_org" | metabigor net --org 2>/dev/null > "$OUTPUT_DIR"/temp/asn-cidrs.txt
     fi
     
     if [ -n "$asn_asn" ]; then
         echo -e "${BOLD}${MAGENTA}[*] Running ASN enumeration by ASN: $asn_asn${NC}"
-        echo "$asn_asn" | metabigor net -v 2>/dev/null | tee temp/metabigor-output.txt | grep -E "^[0-9]+ - " | awk -F' - ' '{print $1}' | sort -u > temp/asn-numbers.txt
-        cat temp/metabigor-output.txt | grep -E "^[0-9]+ - .*/[0-9]+" | awk -F' - ' '{print $2}' | sort -u > temp/asn-cidrs.txt
+        local asn_num="${asn_asn#AS}"
+        echo "$asn_num" | metabigor net --asn 2>/dev/null > "$OUTPUT_DIR"/temp/asn-cidrs.txt
     fi
     
     if [ -n "$asn_domain" ]; then
         echo -e "${BOLD}${MAGENTA}[*] Running ASN enumeration by domain: $asn_domain${NC}"
-        # Try --domain first, if no results try --org with extracted name
-        echo "$asn_domain" | metabigor net --domain -v 2>/dev/null | tee temp/metabigor-output.txt | grep -E "^[0-9]+ - " | awk -F' - ' '{print $1}' | sort -u > temp/asn-numbers.txt
-        cat temp/metabigor-output.txt | grep -E "^[0-9]+ - .*/[0-9]+" | awk -F' - ' '{print $2}' | sort -u > temp/asn-cidrs.txt
+        echo "$asn_domain" | metabigor net --domain 2>/dev/null > "$OUTPUT_DIR"/temp/asn-cidrs.txt
         
-        # If no CIDRs found, try --org with the main domain name
-        if [ ! -s temp/asn-cidrs.txt ]; then
+        if [ ! -s "$OUTPUT_DIR/temp/asn-cidrs.txt" ]; then
             main_name=$(echo "$asn_domain" | cut -d'.' -f1 | tr '[:lower:]' '[:upper:]' | sed 's/-/ /g')
             echo -e "${YELLOW}${BOLD}[*] Retrying with org search: $main_name${NC}"
-            echo "$main_name" | metabigor net --org -v 2>/dev/null | tee temp/metabigor-output2.txt | grep -E "^[0-9]+ - " | awk -F' - ' '{print $1}' | sort -u >> temp/asn-numbers.txt
-            cat temp/metabigor-output2.txt | grep -E "^[0-9]+ - .*/[0-9]+" | awk -F' - ' '{print $2}' | sort -u >> temp/asn-cidrs.txt
-            rm -f temp/metabigor-output2.txt
+            echo "$main_name" | metabigor net --org 2>/dev/null > "$OUTPUT_DIR"/temp/asn-cidrs.txt
         fi
     fi
     
-    if [ -f temp/asn-numbers.txt ] && [ -s temp/asn-numbers.txt ]; then
-        asn_count=$(wc -l < temp/asn-numbers.txt)
-        echo -e "${GREEN}${BOLD}[*] Found $asn_count ASN numbers${NC}"
-    fi
-    
-    rm -f temp/metabigor-output.txt
-    
-    if [ -f temp/asn-cidrs.txt ] && [ -s temp/asn-cidrs.txt ]; then
-        cidr_count=$(wc -l < temp/asn-cidrs.txt)
+    if [ -f "$OUTPUT_DIR/temp/asn-cidrs.txt" ] && [ -s "$OUTPUT_DIR/temp/asn-cidrs.txt" ]; then
+        cidr_count=$(wc -l < "$OUTPUT_DIR/temp/asn-cidrs.txt")
         echo -e "${GREEN}${BOLD}[*] Found $cidr_count CIDR ranges${NC}"
         
         echo -e "${BOLD}${MAGENTA}[*] Analyzing CIDR sizes...${NC}"
         
-        MAX_IPS=5000
         skipped_count=0
         expanded_count=0
         estimated_total=0
         
-        > temp/asn-ips.txt
+        > "$OUTPUT_DIR/temp/asn-ips.txt"
         
         while IFS= read -r cidr; do
             if [[ "$cidr" =~ ^([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)/([0-9]+)$ ]]; then
@@ -332,40 +349,33 @@ run_asn_enum() {
                     continue
                 fi
                 
-                ip_count=$((2**(32-mask)))
-                new_total=$((estimated_total + ip_count))
-                
-                if [ "$new_total" -gt "$MAX_IPS" ]; then
-                    echo -e "${YELLOW}${BOLD}[!] Reached max IP limit ($MAX_IPs). Stopping expansion.${NC}"
-                    echo -e "${YELLOW}${BOLD}[!] Skipped remaining large CIDRs to prevent memory issues.${NC}"
-                    break
-                fi
-                
-                estimated_total="$new_total"
-                prips "$cidr" 2>/dev/null >> temp/asn-ips.txt
+                estimated_total=$((estimated_total + 2**(32-mask)))
+                prips "$cidr" 2>/dev/null >> "$OUTPUT_DIR"/temp/asn-ips.txt
                 ((expanded_count++))
             fi
-        done < temp/asn-cidrs.txt
+        done < "$OUTPUT_DIR/temp/asn-cidrs.txt"
+        
+        sort -u "$OUTPUT_DIR"/temp/asn-cidrs.txt > "$OUTPUT_DIR"/asn/cidrs.txt 2>/dev/null
         
         echo -e "${GREEN}${BOLD}[*] Expansion summary: $expanded_count CIDRs expanded, $skipped_count skipped${NC}"
         echo -e "${GREEN}${BOLD}[*] Estimated IPs: $estimated_total${NC}"
         
-        if [ -f temp/asn-ips.txt ] && [ -s temp/asn-ips.txt ]; then
-            ip_count=$(wc -l < temp/asn-ips.txt)
+        if [ -f "$OUTPUT_DIR/temp/asn-ips.txt" ] && [ -s "$OUTPUT_DIR/temp/asn-ips.txt" ]; then
+            ip_count=$(wc -l < "$OUTPUT_DIR/temp/asn-ips.txt")
             echo -e "${GREEN}${BOLD}[*] Expanded to $ip_count IP addresses${NC}"
             
             echo -e "${BOLD}${MAGENTA}[*] Finding live IPs with HTTP service (httpx)...${NC}"
-            cat temp/asn-ips.txt | httpx -threads 300 -retries 2 2>&1 | grep -E "^http" | awk '{print $1}' | sed 's|https\?://||' | cut -d':' -f1 | sort -u > temp/asn-live-ips.txt
+            cat "$OUTPUT_DIR/temp/asn-ips.txt" | httpx -threads 300 -retries 2 2>&1 | grep -E "^http" | awk '{print $1}' | sed 's|https\?://||' | cut -d':' -f1 | sort -u > "$OUTPUT_DIR"/temp/asn-live-ips.txt
             
-            live_ip_count=$(wc -l < temp/asn-live-ips.txt 2>/dev/null || echo 0)
+            live_ip_count=$(wc -l < "$OUTPUT_DIR/temp/asn-live-ips.txt" 2>/dev/null || echo 0)
             echo -e "${GREEN}${BOLD}[*] Found $live_ip_count live IPs with HTTP${NC}"
             
             if [ "$live_ip_count" -gt 0 ]; then
                 echo -e "${BOLD}${MAGENTA}[*] Running reverse DNS lookup on live IPs...${NC}"
-                cat temp/asn-live-ips.txt | dnsx -retry 3 -threads 300 -resp-only -ptr 2>&1 | grep -v "^\[" | grep -i "$asn_domain" | sort -u > results/asnresults.txt
+                cat "$OUTPUT_DIR/temp/asn-live-ips.txt" | dnsx -retry 3 -threads 300 -resp-only -ptr 2>&1 | grep -v "^\[" | grep -i "$asn_domain" | sort -u > "$OUTPUT_DIR"/asn/hostnames.txt
                 
-                if [ -f results/asnresults.txt ] && [ -s results/asnresults.txt ]; then
-                    result_count=$(wc -l < results/asnresults.txt)
+                if [ -f "$OUTPUT_DIR/asn/hostnames.txt" ] && [ -s "$OUTPUT_DIR/asn/hostnames.txt" ]; then
+                    result_count=$(wc -l < "$OUTPUT_DIR/asn/hostnames.txt")
                     echo -e "${GREEN}${BOLD}[*] ASN Enumeration: $result_count hostnames discovered${NC}"
                 else
                     echo -e "${YELLOW}${BOLD}[-] No hostnames found from reverse DNS${NC}"
@@ -383,20 +393,21 @@ run_asn_enum() {
     if [ -n "$asn_cert" ]; then
         echo -e "${BOLD}${MAGENTA}[*] Running certificate transparency search: $asn_cert${NC}"
         
-        echo "$asn_cert" | metabigor cert --clean 2>/dev/null | anew temp/cert-subdomains.txt
+        echo "$asn_cert" | metabigor cert --clean 2>/dev/null | anew "$OUTPUT_DIR"/temp/cert-subdomains.txt
         
-        if [ -f temp/cert-subdomains.txt ] && [ -s temp/cert-subdomains.txt ]; then
-            cert_count=$(wc -l < temp/cert-subdomains.txt)
+        if [ -f "$OUTPUT_DIR/temp/cert-subdomains.txt" ] && [ -s "$OUTPUT_DIR/temp/cert-subdomains.txt" ]; then
+            cert_count=$(wc -l < "$OUTPUT_DIR/temp/cert-subdomains.txt")
             echo -e "${GREEN}${BOLD}[*] Certificate Search: $cert_count subdomains discovered${NC}"
             
-            cat temp/cert-subdomains.txt | sort -u | anew results/asnresults.txt
+            sort -u "$OUTPUT_DIR"/temp/cert-subdomains.txt > "$OUTPUT_DIR"/asn/certificates.txt 2>/dev/null
+            cat "$OUTPUT_DIR"/asn/certificates.txt | anew "$OUTPUT_DIR"/asn/hostnames.txt
         else
             echo -e "${YELLOW}${BOLD}[-] No subdomains found from certificate search${NC}"
         fi
     fi
     
-    if [ -f results/asnresults.txt ] && [ -s results/asnresults.txt ]; then
-        total_count=$(wc -l < results/asnresults.txt)
+    if [ -f "$OUTPUT_DIR/asn/hostnames.txt" ] && [ -s "$OUTPUT_DIR/asn/hostnames.txt" ]; then
+        total_count=$(wc -l < "$OUTPUT_DIR/asn/hostnames.txt")
         echo -e "${GREEN}${BOLD}[+] Total ASN results: $total_count hostnames${NC}"
     fi
 }
@@ -476,6 +487,10 @@ while [[ $# -gt 0 ]]; do
             fi
             shift
             ;;
+        -es|--exclude-sensitive)
+            exclude_sensitive=True
+            shift
+            ;;
         -p|--parallel)
             PARALLEL=True
             shift
@@ -497,24 +512,34 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Handle Ctrl+C gracefully
-cleanup() {
-    echo -e "\n${YELLOW}${BOLD}[*] Interrupted by user${NC}"
-    pkill -P $$ 2>/dev/null
-    jobs -p | xargs -r kill 2>/dev/null
-    rm -rf temp/ 2>/dev/null
-    exit 130
-}
-trap cleanup INT
-
 # Default values
 # Auto-detect wordlist from home directory
 DEFAULT_WORDLIST="$HOME/wordlists/subdomains-top1million-110000.txt"
 FFUF_WORDLIST="${ffuf_wordlist:-$DEFAULT_WORDLIST}"
 FFUF_THREADS="${ffuf_threads:-200}"
 
-# Create temp and results directories
-mkdir -p temp results
+# Create timestamped output directory
+TIMESTAMP=$(date +%Y-%m-%d_%H-%M-%S)
+OUTPUT_DIR="outputs/${domain:-multi}-${TIMESTAMP}"
+mkdir -p "$OUTPUT_DIR"/{temp,alive,asn}
+
+# Handle Ctrl+C gracefully
+cleanup() {
+    echo -e "\n${YELLOW}${BOLD}[*] Interrupted by user${NC}"
+    pkill -P $$ 2>/dev/null
+    jobs -p | xargs -r kill 2>/dev/null
+    rm -rf "$OUTPUT_DIR" 2>/dev/null
+    exit 130
+}
+trap cleanup INT
+
+# Check for sensitive domains
+if [ "$exclude_sensitive" == True ] && [ -n "$domain" ]; then
+    if is_sensitive_domain "$domain"; then
+        echo -e "${RED}${BOLD}[-] Domain '$domain' matches sensitive pattern. Use --exclude-sensitive to allow.${NC}"
+        exit 1
+    fi
+fi
 
 # Auto-enable ffuf and http-probe when using parallel mode
 if [[ "${PARALLEL}" == True ]]; then
@@ -592,5 +617,18 @@ else
         fi
     fi
 fi
+
+# Save merged subdomain lists when HTTP probe is not used
+if [ "$http_probe" != True ]; then
+    if compgen -G "$OUTPUT_DIR/temp/tmp-*" > /dev/null 2>&1; then
+        sort -u "$OUTPUT_DIR"/temp/tmp-* > "$OUTPUT_DIR"/all-subdomains.txt
+        if [ -f "$OUTPUT_DIR/temp/ffufsubdomains.txt" ]; then
+            cat "$OUTPUT_DIR"/all-subdomains.txt "$OUTPUT_DIR"/temp/ffufsubdomains.txt 2>/dev/null | sort -u > "$OUTPUT_DIR"/all-subdomains-ffuf.txt
+        fi
+    fi
+fi
+
+# Clean up temp files on success
+rm -rf "$OUTPUT_DIR/temp"
 
 echo -e "${CYAN}${BOLD}[*] Subdomain enumeration completed.${NC}"

@@ -77,7 +77,6 @@ check_installation() {
     echo -e "${bold}=== ASN/Network Enumeration ===${reset}"
     check_tool "metabigor" "metabigor"
     check_tool "prips" "prips"
-    check_tool "hakrevdns" "hakrevdns"
 
     echo ""
     echo -e "${bold}=== Wordlists ===${reset}"
@@ -95,8 +94,7 @@ check_installation() {
 install_deps() {
     print_info "Installing system dependencies..."
     sudo apt update
-    sudo apt install -y git python3-pip python3-venv python3-dev libssl-dev libffi-dev nmap unzip
-    sudo apt install -y jq curl ca-certificates moreutils parallel build-essential
+    sudo apt install -y --fix-missing git unzip jq ca-certificates
 }
 
 # Install Go tools
@@ -164,13 +162,6 @@ install_go_tools() {
         GO111MODULE=on go install -v github.com/j3ssie/metabigor@latest
     else
         print_warn "Skipping: metabigor (already installed)"
-    fi
-
-    if [ "$FORCE" = true ] || ! command -v hakrevdns &> /dev/null; then
-        [ "$FORCE" = true ] && print_info "Forcing install: hakrevdns" || print_info "Installing: hakrevdns"
-        GO111MODULE=on go install github.com/hakluke/hakrevdns@latest
-    else
-        print_warn "Skipping: hakrevdns (already installed)"
     fi
 
     print_info "Go tools installed successfully"

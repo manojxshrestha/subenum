@@ -20,9 +20,7 @@ check_tool() {
 echo "Checking required tools for subenum..."
 echo ""
 echo "=== Core Tools ==="
-check_tool "parallel" "parallel"
 check_tool "jq" "jq"
-check_tool "curl" "curl"
 
 echo ""
 echo "=== Subdomain Enumeration Tools ==="
@@ -42,7 +40,6 @@ echo ""
 echo "=== ASN/Network Enumeration ==="
 check_tool "metabigor" "metabigor"
 check_tool "prips" "prips"
-check_tool "hakrevdns" "hakrevdns"
 
 echo ""
 echo "=== Wordlists ==="

@@ -1,0 +1,51 @@
+# Sensitive Domains Exclusion List
+# Based on DEF CON Subdomain Enumeration Retrospective recommendations
+# These patterns trigger a warning when --exclude-sensitive is used
+#
+# Format: One pattern per line
+# - Patterns starting with *. will match any subdomain of that domain
+# - Exact domain names will be matched as-is
+# - Lines starting with # are comments
+# - Empty lines are ignored
+
+# Government domains
+*.gov
+*.gov.*
+*.gob.*
+*.gouv.*
+*.gobierno.*
+*.govt.*
+*.government.*
+
+# Military domains
+*.mil
+*.mil.*
+*.military.*
+*.army.*
+*.navy.*
+*.airforce.*
+*.mod.*
+*.defense.*
+*.defence.*
+
+# Educational institutions
+*.edu
+*.edu.*
+*.ac.*
+*.university.*
+*.college.*
+*.school.*
+
+# Financial institutions
+*.bank
+*.bank.*
+*.banking.*
+*.creditunion.*
+
+# Critical infrastructure
+*.nhs.*
+*.hospital.*
+*.healthcare.*
+*.police.*
+*.emergency.*
+*.911.*
