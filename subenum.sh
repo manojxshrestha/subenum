@@ -276,13 +276,13 @@ run_http_probe() {
     
     cat "$OUTPUT_DIR/temp/alivesubdomains.txt" 2>/dev/null | sort -u > "$OUTPUT_DIR"/temp/filtersubdomains.txt
     
-    cat "$OUTPUT_DIR/temp/filtersubdomains.txt" | awk '{print $1}' | sed 's|https\?://||' | sed 's|/$||' | sort -u > "$OUTPUT_DIR"/alive/alive-domains.txt
+    cat "$OUTPUT_DIR/temp/filtersubdomains.txt" 2>/dev/null | awk '{print $1}' | sed 's|https\?://||' | sed 's|/$||' | sort -u > "$OUTPUT_DIR"/alive/alive-domains.txt
     
-    cut -d' ' -f1 "$OUTPUT_DIR/temp/filtersubdomains.txt" | grep "^https" > "$OUTPUT_DIR"/alive/https-subs.txt
+    cut -d' ' -f1 "$OUTPUT_DIR/temp/filtersubdomains.txt" 2>/dev/null | grep "^https" > "$OUTPUT_DIR"/alive/https-subs.txt
     
-    alive_count=$(wc -l < "$OUTPUT_DIR/temp/alivesubdomains.txt" 2>/dev/null || echo 0)
-    domains_count=$(wc -l < "$OUTPUT_DIR/alive/alive-domains.txt" 2>/dev/null || echo 0)
-    https_count=$(wc -l < "$OUTPUT_DIR/alive/https-subs.txt" 2>/dev/null || echo 0)
+    alive_count=$([ -f "$OUTPUT_DIR/temp/alivesubdomains.txt" ] && wc -l < "$OUTPUT_DIR/temp/alivesubdomains.txt" || echo 0)
+    domains_count=$([ -f "$OUTPUT_DIR/alive/alive-domains.txt" ] && wc -l < "$OUTPUT_DIR/alive/alive-domains.txt" || echo 0)
+    https_count=$([ -f "$OUTPUT_DIR/alive/https-subs.txt" ] && wc -l < "$OUTPUT_DIR/alive/https-subs.txt" || echo 0)
     
     echo -e "${GREEN}${BOLD}[*] HTTP Probe: $alive_count alive subdomains found${NC}"
     echo -e "${GREEN}${BOLD}[*] Clean domains: $domains_count${NC}"
