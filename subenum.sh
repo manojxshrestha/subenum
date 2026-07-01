@@ -57,7 +57,7 @@ Usage() {
     \r    -fb, --ffuf             - Run ffuf bruteforce after enumeration
     \r    -fw, --ffuf-wordlist   - Wordlist for ffuf (Default: ~/wordlists/subdomains-top1million-110000.txt)
     \r    -ft, --ffuf-threads    - FFUF threads (Default: 200)
-    \r    -hp, --http-probe      - Probe for working http/https servers (requires -fb)
+    \r    -hp, --http-probe      - Probe subdomains for live http/https servers
     \r    -ao, --asn-org         - Find IP ranges by organization name
     \r    -aa, --asn-asn         - Find IP ranges by ASN (e.g., AS13335)
     \r    -ad, --asn-domain      - Find IP ranges by domain
@@ -252,7 +252,7 @@ run_http_probe() {
     # Combine subdomains + ffuf results
     cat "$OUTPUT_DIR/temp/$subdomains_file" "$OUTPUT_DIR"/temp/ffufsubdomains.txt 2>/dev/null | sort -u > "$OUTPUT_DIR"/temp/finalsubdomains.txt
     
-    dnsx -l "$OUTPUT_DIR/temp/finalsubdomains.txt" -silent -a 2>/dev/null | cut -d' ' -f1 | httpx -ports 80,443 -status-code -mc 200,301,302,403,500 -title -tech-detect -web-server -threads 100 -silent -o "$OUTPUT_DIR"/temp/alivesubdomains.txt 2>/dev/null
+    dnsx -l "$OUTPUT_DIR/temp/finalsubdomains.txt" -silent -a 2>/dev/null | cut -d' ' -f1 | httpx -ports 80,443 -status-code -mc 200,301,302,403,500 -title -tech-detect -web-server -threads 200 -silent -o "$OUTPUT_DIR"/temp/alivesubdomains.txt 2>/dev/null
     
     cat "$OUTPUT_DIR/temp/alivesubdomains.txt" 2>/dev/null | sort -u > "$OUTPUT_DIR"/temp/filtersubdomains.txt
     
@@ -358,7 +358,7 @@ run_asn_enum() {
             echo -e "${GREEN}${BOLD}[*] Expanded to $ip_count IP addresses${NC}"
             
             echo -e "${BOLD}${MAGENTA}[*] Finding live IPs with HTTP service (httpx)...${NC}"
-            head -5000 "$OUTPUT_DIR/temp/asn-ips.txt" | httpx -ports 80,443 -threads 300 -timeout 5 -retries 1 -silent 2>/dev/null | awk '{print $1}' | sed 's|https\?://||' | sed 's|:.*||' | sort -u > "$OUTPUT_DIR"/temp/asn-live-ips.txt
+            head -5000 "$OUTPUT_DIR/temp/asn-ips.txt" | httpx -ports 80,443 -threads 200 -timeout 5 -retries 1 -silent 2>/dev/null | awk '{print $1}' | sed 's|https\?://||' | sed 's|:.*||' | sort -u > "$OUTPUT_DIR"/temp/asn-live-ips.txt
             
             live_ip_count=$(wc -l < "$OUTPUT_DIR/temp/asn-live-ips.txt" 2>/dev/null || echo 0)
             echo -e "${GREEN}${BOLD}[*] Found $live_ip_count live IPs with HTTP${NC}"
@@ -509,7 +509,7 @@ done
 # Auto-detect wordlist from home directory
 DEFAULT_WORDLIST="$HOME/wordlists/subdomains-top1million-110000.txt"
 FFUF_WORDLIST="${ffuf_wordlist:-$DEFAULT_WORDLIST}"
-FFUF_THREADS="${ffuf_threads:-200}"
+FFUF_THREADS="${ffuf_threads:-300}"
 
 # Create output directory
 OUTPUT_DIR="outputs/${domain:-multi}"
@@ -533,9 +533,8 @@ if [ "$exclude_sensitive" == True ] && [ -n "$domain" ]; then
     fi
 fi
 
-# Auto-enable ffuf and http-probe when using parallel mode
+# Auto-enable http-probe when using parallel mode
 if [[ "${PARALLEL}" == True ]]; then
-    run_ffuf=True
     http_probe=True
 fi
 
@@ -579,11 +578,11 @@ if [ -n "$list" ]; then
         # Run FFUF bruteforce if enabled
         if [ "$run_ffuf" == True ]; then
             run_ffuf "$SUBDOMAINS_FILE" "$domain"
-            
-            # Run HTTP probe if enabled
-            if [ "$http_probe" == True ]; then
-                run_http_probe "$domain" "$SUBDOMAINS_FILE"
-            fi
+        fi
+        
+        # Run HTTP probe if enabled
+        if [ "$http_probe" == True ]; then
+            run_http_probe "$domain" "$SUBDOMAINS_FILE"
         fi
     done < "$list"
 else
@@ -600,11 +599,11 @@ else
     # Run FFUF bruteforce if enabled
     if [ "$run_ffuf" == True ]; then
         run_ffuf "$SUBDOMAINS_FILE" "$domain"
-        
-        # Run HTTP probe if enabled
-        if [ "$http_probe" == True ]; then
-            run_http_probe "$domain" "$SUBDOMAINS_FILE"
-        fi
+    fi
+    
+    # Run HTTP probe if enabled
+    if [ "$http_probe" == True ]; then
+        run_http_probe "$domain" "$SUBDOMAINS_FILE"
     fi
 fi
 
