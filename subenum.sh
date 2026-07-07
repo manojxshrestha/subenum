@@ -227,22 +227,25 @@ run_findomain() {
 # Merges all per-tool temp files for a single domain into one deduplicated file.
 # FIX: each domain now writes to its own subdirectory so list-mode runs don't
 #      cross-contaminate results across domains.
+# FIX: path returned via $MERGE_RESULT global so color output never corrupts
+#      the value when callers previously used $() to capture it.
+MERGE_RESULT=""
 merge_results() {
     local dom="$1"
     local out_file="$2"
     local tmpdir
     tmpdir=$(domain_temp_dir "$dom")
     local dest="${OUTPUT_DIR}/${dom}-${out_file}"
+    MERGE_RESULT=""
 
     if compgen -G "${tmpdir}/*.txt" &>/dev/null; then
         sort -u "${tmpdir}"/*.txt > "$dest"
         local count
         count=$(wc -l < "$dest")
         echo -e "${GREEN}${BOLD}[+] Total unique subdomains found for ${dom}: ${count}${NC}"
-        echo "$dest"   # return path for callers
+        MERGE_RESULT="$dest"
     else
         echo -e "${YELLOW}${BOLD}[-] No results found for ${dom}.${NC}"
-        echo ""
     fi
 }
 
@@ -512,8 +515,8 @@ enumerate_domain() {
     fi
 
     local out_file="${OUTPUT_FILE:-subdomains.txt}"
-    local merged
-    merged=$(merge_results "$dom" "$out_file")
+    merge_results "$dom" "$out_file"
+    local merged="$MERGE_RESULT"
 
     # FFUF bruteforce
     if [[ "$RUN_FFUF" == True && -n "$merged" ]]; then
