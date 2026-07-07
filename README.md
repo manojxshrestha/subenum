@@ -182,6 +182,11 @@ chmod +x subenum.sh
 ./subenum.sh -d example.com -hp
 ```
 
+### With HTTP probing
+```bash
+./subenum.sh -d example.com -hp
+```
+
 ### With FFUF + HTTP probing
 ```bash
 ./subenum.sh -d example.com -fb -hp
