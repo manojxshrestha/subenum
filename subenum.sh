@@ -235,7 +235,8 @@ merge_results() {
     local out_file="$2"
     local tmpdir
     tmpdir=$(domain_temp_dir "$dom")
-    local dest="${OUTPUT_DIR}/${dom}-${out_file}"
+    local prefix=""; [[ -n "$LIST" ]] && prefix="${dom}-"
+    local dest="${OUTPUT_DIR}/${prefix}${out_file}"
     MERGE_RESULT=""
 
     if compgen -G "${tmpdir}/*.txt" &>/dev/null; then
@@ -311,8 +312,9 @@ run_http_probe() {
     local ffuf_out="${OUTPUT_DIR}/temp/${dom}-ffufsubdomains.txt"
     local final_subs="${OUTPUT_DIR}/temp/${dom}-finalsubdomains.txt"
     local alive_raw="${OUTPUT_DIR}/temp/${dom}-alive.txt"
-    local alive_clean="${OUTPUT_DIR}/alive/${dom}-alive-domains.txt"
-    local https_only="${OUTPUT_DIR}/alive/${dom}-https-subs.txt"
+    local prefix=""; [[ -n "$LIST" ]] && prefix="${dom}-"
+    local alive_clean="${OUTPUT_DIR}/alive/${prefix}alive-domains.txt"
+    local https_only="${OUTPUT_DIR}/alive/${prefix}https-subs.txt"
 
     # Combine enumeration + ffuf results (ffuf file may not exist — tolerate that)
     cat "$subdomains_file" "$ffuf_out" 2>/dev/null | sort -u > "$final_subs"
@@ -530,13 +532,14 @@ enumerate_domain() {
 
     # Final merged file (no http-probe path)
     if [[ "$HTTP_PROBE" != True ]]; then
-        local all_file="${OUTPUT_DIR}/${dom}-all-subdomains.txt"
+        local prefix=""; [[ -n "$LIST" ]] && prefix="${dom}-"
+        local all_file="${OUTPUT_DIR}/${prefix}all-subdomains.txt"
         cp "$merged" "$all_file" 2>/dev/null
 
         local ffuf_out="${OUTPUT_DIR}/temp/${dom}-ffufsubdomains.txt"
         if [[ -f "$ffuf_out" && -s "$ffuf_out" ]]; then
             cat "$all_file" "$ffuf_out" | sort -u \
-                > "${OUTPUT_DIR}/${dom}-all-subdomains-ffuf.txt"
+                > "${OUTPUT_DIR}/${prefix}all-subdomains-ffuf.txt"
         fi
     fi
 }
