@@ -141,6 +141,7 @@ chmod +x subenum.sh
 | `-fb, --ffuf` | Run FFUF subdomain bruteforce after enumeration |
 | `-fw, --ffuf-wordlist` | Custom wordlist for FFUF (default: ~/wordlists/subdomains-top1million-110000.txt) |
 | `-ft, --ffuf-threads` | FFUF threads (default: 200) |
+| `-fr, --ffuf-rate` | FFUF request rate/sec (default: 300, 0 = unlimited) |
 | `-hp, --http-probe` | Probe for working http/https servers |
 | `-ao, --asn-org` | Find IP ranges by organization name |
 | `-aa, --asn-asn` | Find IP ranges by ASN (e.g., AS13335) |

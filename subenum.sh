@@ -53,6 +53,7 @@ usage() {
     -fb, --ffuf             Run ffuf bruteforce after enumeration
     -fw, --ffuf-wordlist    Wordlist for ffuf (Default: ~/wordlists/subdomains-top1million-110000.txt)
     -ft, --ffuf-threads     FFUF threads (Default: 300)
+    -fr, --ffuf-rate        FFUF request rate/sec (Default: 300, 0 = unlimited)
     -hp, --http-probe       Probe subdomains for live http/https servers
     -ao, --asn-org          Find IP ranges by organization name
     -aa, --asn-asn          Find IP ranges by ASN (e.g. AS13335)
@@ -250,6 +251,40 @@ merge_results() {
     fi
 }
 
+# ─── DNS Wildcard Filter ──────────────────────────────────────────────────────
+# Reads hostnames from stdin, resolves them alongside random probe hosts, and
+# drops any host sharing an A record with a probe (a wildcard DNS signature).
+# Backstops ffuf auto-calibration against catch-alls that reflect input text.
+filter_wildcard_hosts() {
+    local dom="$1"
+    command -v dnsx &>/dev/null || { cat; return; }
+    command -v jq  &>/dev/null || { cat; return; }
+
+    local tmp="${OUTPUT_DIR}/temp/${dom}-wildcard.txt"
+    local probes
+    probes="rnd-${RANDOM}${RANDOM}-1.${dom}
+rnd-${RANDOM}${RANDOM}-2.${dom}"
+
+    { cat; printf '%s\n' "$probes"; } \
+        | dnsx -a -resp -json -silent 2>/dev/null \
+        | jq -r '.host + "\t" + (.a[] // "")' 2>/dev/null \
+        | sort -u > "$tmp"
+
+    [[ -s "$tmp" ]] || { rm -f "$tmp"; return; }
+
+    local probe_ips
+    probe_ips=$(printf '%s\n' "$probes" | while IFS= read -r p; do
+        awk -F'\t' -v h="$p" '$1 == h { print $2 }' "$tmp"
+    done | sort -u)
+
+    awk -F'\t' -v filter="$probe_ips" '
+        BEGIN { n = split(filter, ips, "\n"); for (i = 1; i <= n; i++) bad[ips[i]] = 1 }
+        ($2 != "" && !($2 in bad)) { print $1 }
+    ' "$tmp" | sort -u
+
+    rm -f "$tmp"
+}
+
 # ─── FFUF Bruteforce ──────────────────────────────────────────────────────────
 # FIX: now actually uses the merged subdomains file path passed in as $1
 run_ffuf() {
@@ -272,16 +307,19 @@ run_ffuf() {
          -w "$FFUF_WORDLIST" \
          -t "$FFUF_THREADS" \
          -timeout 20 \
-         -rate 100 \
+         -rate "$FFUF_RATE" \
+         -ac \
          -noninteractive \
          -o "$ffuf_json" \
          -of json \
-         </dev/null 2>&1 || true
+         </dev/null >/dev/null 2>&1 || true
 
     local ffuf_out="${OUTPUT_DIR}/temp/${dom}-ffufsubdomains.txt"
     if [[ -f "$ffuf_json" ]]; then
         jq -r '.results[].url' "$ffuf_json" 2>/dev/null \
             | sed 's|^https\?://||; s|/.*||' \
+            | sort -u \
+            | filter_wildcard_hosts "$dom" \
             > "$ffuf_out"
         rm -f "$ffuf_json"
         local ffuf_count
@@ -563,6 +601,7 @@ SILENT=False
 RUN_FFUF=False
 FFUF_WORDLIST=""
 FFUF_THREADS=""
+FFUF_RATE=""
 HTTP_PROBE=False
 ASN_ORG=""
 ASN_ASN=""
@@ -582,6 +621,7 @@ while [[ $# -gt 0 ]]; do
         -fb|--ffuf)            RUN_FFUF=True;        shift   ;;
         -fw|--ffuf-wordlist)   FFUF_WORDLIST="$2";   shift 2 ;;
         -ft|--ffuf-threads)    FFUF_THREADS="$2";    shift 2 ;;
+        -fr|--ffuf-rate)       FFUF_RATE="$2";       shift 2 ;;
         -hp|--http-probe)      HTTP_PROBE=True;      shift   ;;
         -ao|--asn-org)         ASN_ORG="$2";         shift 2 ;;
         -aa|--asn-asn)         ASN_ASN="$2";         shift 2 ;;
@@ -619,6 +659,7 @@ fi
 # ─── Post-parse Defaults ──────────────────────────────────────────────────────
 FFUF_WORDLIST="${FFUF_WORDLIST:-$HOME/wordlists/subdomains-top1million-110000.txt}"
 FFUF_THREADS="${FFUF_THREADS:-300}"
+FFUF_RATE="${FFUF_RATE:-300}"
 
 # Keep lowercase domain in sync (used by spinner labels and dnsx ptr filter)
 domain="$DOMAIN"

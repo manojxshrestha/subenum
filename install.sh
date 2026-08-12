@@ -55,14 +55,12 @@ check_installation() {
     echo ""
 
     echo -e "${bold}=== Core Tools ===${reset}"
-    check_tool "parallel" "parallel"
+    check_tool "tput" "tput (ncurses)"
     check_tool "jq" "jq"
-    check_tool "curl" "curl"
 
     echo ""
     echo -e "${bold}=== Subdomain Enumeration ===${reset}"
     check_tool "subfinder" "subfinder"
-    check_tool "amass" "amass"
     check_tool "assetfinder" "assetfinder"
     check_tool "findomain" "findomain"
     check_tool "anew" "anew"
@@ -94,7 +92,7 @@ check_installation() {
 install_deps() {
     print_info "Installing system dependencies..."
     sudo apt update
-    sudo apt install -y --fix-missing git unzip jq ca-certificates
+    sudo apt install -y --fix-missing git unzip jq ca-certificates ncurses-bin wget
 }
 
 # Install Go tools
