@@ -309,10 +309,8 @@ run_ffuf() {
          -timeout 20 \
          -rate "$FFUF_RATE" \
          -ac \
-         -noninteractive \
          -o "$ffuf_json" \
-         -of json \
-         </dev/null >/dev/null 2>&1 || true
+         -of json || true
 
     local ffuf_out="${OUTPUT_DIR}/temp/${dom}-ffufsubdomains.txt"
     if [[ -f "$ffuf_json" ]]; then
@@ -658,8 +656,8 @@ fi
 
 # ─── Post-parse Defaults ──────────────────────────────────────────────────────
 FFUF_WORDLIST="${FFUF_WORDLIST:-$HOME/wordlists/subdomains-top1million-110000.txt}"
-FFUF_THREADS="${FFUF_THREADS:-300}"
-FFUF_RATE="${FFUF_RATE:-300}"
+FFUF_THREADS="${FFUF_THREADS:-500}"
+FFUF_RATE="${FFUF_RATE:-500}"
 
 # Keep lowercase domain in sync (used by spinner labels and dnsx ptr filter)
 domain="$DOMAIN"
